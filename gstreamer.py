@@ -341,7 +341,7 @@ def run_pipeline(inf_callback, render_callback, src_size,
     if detectCoralDevBoard():
         scale_caps = None
         PIPELINE += """ ! decodebin ! glupload ! glvideoflip video-direction={direction} ! tee name=t
-               t. ! {leaky_q} ! videoconvert ! x264enc ! rtph264pay config-interval=10 pt=96 ! udpsink host=192.168.3.255 auto-multicast=true port=5000
+               t. ! {leaky_q} ! videoconvert ! x264enc ! rtph264pay config-interval=10 pt=96 ! udpsink host=192.168.3.255 auto-multicast=true port=5000 name=overlaysink
                t. ! {leaky_q} ! glfilterbin filter=glbox name=glbox ! {sink_caps} ! {sink_element}
             """
     else:  # raspberry pi or linux
