@@ -330,13 +330,13 @@ def run_pipeline(inf_callback, render_callback, src_size,
                  mirror=False,
                  h264=False,
                  jpeg=False,
-                 videosrc='/dev/video0'):
+                 videosrc='/dev/video1'):
     if h264:
-        SRC_CAPS = 'video/x-h264,width={width},height={height},framerate=30/1'
+        SRC_CAPS = 'video/x-h264,width={width},height={height},framerate=15/1'
     elif jpeg:
-        SRC_CAPS = 'image/jpeg,width={width},height={height},framerate=30/1'
+        SRC_CAPS = 'image/jpeg,width={width},height={height},framerate=15/1'
     else:
-        SRC_CAPS = 'video/x-raw,width={width},height={height},framerate=30/1'
+        SRC_CAPS = 'video/x-raw,width={width},height={height},framerate=15/1'
     PIPELINE = 'v4l2src device=%s ! {src_caps}'%videosrc
     if detectCoralDevBoard():
         scale_caps = None
