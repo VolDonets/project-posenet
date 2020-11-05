@@ -92,7 +92,7 @@ def run(inf_callback, render_callback):
     parser.add_argument('--model', help='.tflite model path.', required=False)
     parser.add_argument('--res', help='Resolution', default='640x480',
                         choices=['480x360', '640x480', '1280x720'])
-    parser.add_argument('--videosrc', help='Which video source to use', default='/dev/video1')
+    parser.add_argument('--videosrc', help='Which video source to use', default='/dev/video0')
     parser.add_argument('--h264', help='Use video/x-h264 input', action='store_true')
     parser.add_argument('--jpeg', help='Use image/jpeg input', action='store_true')
     args = parser.parse_args()
@@ -130,7 +130,7 @@ def main():
     sum_process_time = 0
     sum_inference_time = 0
     ctr = 0
-    fps_counter  = avg_fps_counter(15)
+    fps_counter  = avg_fps_counter(30)
 
     def run_inference(engine, input_tensor):
         return engine.run_inference(input_tensor)

@@ -42,7 +42,7 @@ class GstPipeline:
         self.pipeline = Gst.parse_launch(pipeline)
         self.freezer = self.pipeline.get_by_name('freezer')
         self.overlay = self.pipeline.get_by_name('overlay')
-        #self.overlaysink = self.pipeline.get_by_name('overlaysink')
+        self.overlaysink = self.pipeline.get_by_name('overlaysink')
         appsink = self.pipeline.get_by_name('appsink')
         appsink.connect('new-sample', self.on_new_sample)
 
@@ -67,12 +67,12 @@ class GstPipeline:
         self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
         # We're high latency on higher resolutions, don't drop our late frames.
-        # if self.overlaysink:
-        #     sinkelement = self.overlaysink.get_by_interface(GstVideo.VideoOverlay)
-        # else:
-        #     sinkelement = self.pipeline.get_by_interface(GstVideo.VideoOverlay)
-        # sinkelement.set_property('sync', False)
-        # sinkelement.set_property('qos', False)
+        if self.overlaysink:
+            sinkelement = self.overlaysink.get_by_interface(GstVideo.VideoOverlay)
+        else:
+            sinkelement = self.pipeline.get_by_interface(GstVideo.VideoOverlay)
+        sinkelement.set_property('sync', False)
+        sinkelement.set_property('qos', False)
 
         try:
             Gtk.main()
@@ -190,69 +190,68 @@ class GstPipeline:
 
             svg, freeze = self.render_callback(output, self.src_size, self.get_box())
             self.freezer.frozen = freeze
-            # if self.overlaysink:
-            #     self.overlaysink.set_property('svg', svg)
-            # elif self.overlay:
-            #     self.overlay.set_property('data', svg)
+            if self.overlaysink:
+                self.overlaysink.set_property('svg', svg)
+            elif self.overlay:
+                self.overlay.set_property('data', svg)
 
     def setup_window(self):
-        print('hello, bro')
         # Only set up our own window if we have Coral overlay sink in the pipeline.
-        # if not self.overlaysink:
-        #     return
-        #
-        # gi.require_version('GstGL', '1.0')
-        # from gi.repository import GstGL
-        #
-        # # Needed to commit the wayland sub-surface.
-        # def on_gl_draw(sink, widget):
-        #     widget.queue_draw()
-        #
-        # # Needed to account for window chrome etc.
-        # def on_widget_configure(widget, event, overlaysink):
-        #     allocation = widget.get_allocation()
-        #     overlaysink.set_render_rectangle(allocation.x, allocation.y,
-        #             allocation.width, allocation.height)
-        #     return False
-        #
-        # window = Gtk.Window(Gtk.WindowType.TOPLEVEL)
-        # window.fullscreen()
-        #
-        # drawing_area = Gtk.DrawingArea()
-        # window.add(drawing_area)
-        # drawing_area.realize()
-        #
-        # self.overlaysink.connect('drawn', on_gl_draw, drawing_area)
-        #
-        # # Wayland window handle.
-        # wl_handle = self.overlaysink.get_wayland_window_handle(drawing_area)
-        # self.overlaysink.set_window_handle(wl_handle)
-        #
-        # # Wayland display context wrapped as a GStreamer context.
-        # wl_display = self.overlaysink.get_default_wayland_display_context()
-        # self.overlaysink.set_context(wl_display)
-        #
-        # drawing_area.connect('configure-event', on_widget_configure, self.overlaysink)
-        # window.connect('delete-event', Gtk.main_quit)
-        # window.show_all()
-        #
-        # # The appsink pipeline branch must use the same GL display as the screen
-        # # rendering so they get the same GL context. This isn't automatically handled
-        # # by GStreamer as we're the ones setting an external display handle.
-        # def on_bus_message_sync(bus, message, overlaysink):
-        #     if message.type == Gst.MessageType.NEED_CONTEXT:
-        #         _, context_type = message.parse_context_type()
-        #         if context_type == GstGL.GL_DISPLAY_CONTEXT_TYPE:
-        #             sinkelement = overlaysink.get_by_interface(GstVideo.VideoOverlay)
-        #             gl_context = sinkelement.get_property('context')
-        #             if gl_context:
-        #                 display_context = Gst.Context.new(GstGL.GL_DISPLAY_CONTEXT_TYPE, True)
-        #                 GstGL.context_set_gl_display(display_context, gl_context.get_display())
-        #                 message.src.set_context(display_context)
-        #     return Gst.BusSyncReply.PASS
-        #
-        # bus = self.pipeline.get_bus()
-        # bus.set_sync_handler(on_bus_message_sync, self.overlaysink)
+        if not self.overlaysink:
+            return
+
+        gi.require_version('GstGL', '1.0')
+        from gi.repository import GstGL
+
+        # Needed to commit the wayland sub-surface.
+        def on_gl_draw(sink, widget):
+            widget.queue_draw()
+
+        # Needed to account for window chrome etc.
+        def on_widget_configure(widget, event, overlaysink):
+            allocation = widget.get_allocation()
+            overlaysink.set_render_rectangle(allocation.x, allocation.y,
+                    allocation.width, allocation.height)
+            return False
+
+        window = Gtk.Window(Gtk.WindowType.TOPLEVEL)
+        window.fullscreen()
+
+        drawing_area = Gtk.DrawingArea()
+        window.add(drawing_area)
+        drawing_area.realize()
+
+        self.overlaysink.connect('drawn', on_gl_draw, drawing_area)
+
+        # Wayland window handle.
+        wl_handle = self.overlaysink.get_wayland_window_handle(drawing_area)
+        self.overlaysink.set_window_handle(wl_handle)
+
+        # Wayland display context wrapped as a GStreamer context.
+        wl_display = self.overlaysink.get_default_wayland_display_context()
+        self.overlaysink.set_context(wl_display)
+
+        drawing_area.connect('configure-event', on_widget_configure, self.overlaysink)
+        window.connect('delete-event', Gtk.main_quit)
+        window.show_all()
+
+        # The appsink pipeline branch must use the same GL display as the screen
+        # rendering so they get the same GL context. This isn't automatically handled
+        # by GStreamer as we're the ones setting an external display handle.
+        def on_bus_message_sync(bus, message, overlaysink):
+            if message.type == Gst.MessageType.NEED_CONTEXT:
+                _, context_type = message.parse_context_type()
+                if context_type == GstGL.GL_DISPLAY_CONTEXT_TYPE:
+                    sinkelement = overlaysink.get_by_interface(GstVideo.VideoOverlay)
+                    gl_context = sinkelement.get_property('context')
+                    if gl_context:
+                        display_context = Gst.Context.new(GstGL.GL_DISPLAY_CONTEXT_TYPE, True)
+                        GstGL.context_set_gl_display(display_context, gl_context.get_display())
+                        message.src.set_context(display_context)
+            return Gst.BusSyncReply.PASS
+
+        bus = self.pipeline.get_bus()
+        bus.set_sync_handler(on_bus_message_sync, self.overlaysink)
 
 def on_bus_message(bus, message, loop):
     t = message.type
@@ -331,30 +330,30 @@ def run_pipeline(inf_callback, render_callback, src_size,
                  mirror=False,
                  h264=False,
                  jpeg=False,
-                 videosrc='/dev/video1'):
+                 videosrc='/dev/video0'):
     if h264:
-        SRC_CAPS = 'video/x-h264,width={width},height={height},framerate=15/1'
+        SRC_CAPS = 'video/x-h264,width={width},height={height},framerate=30/1'
     elif jpeg:
-        SRC_CAPS = 'image/jpeg,width={width},height={height},framerate=15/1'
+        SRC_CAPS = 'image/jpeg,width={width},height={height},framerate=30/1'
     else:
-        SRC_CAPS = 'video/x-raw,width={width},height={height},framerate=15/1'
+        SRC_CAPS = 'video/x-raw,width={width},height={height},framerate=30/1'
     PIPELINE = 'v4l2src device=%s ! {src_caps}'%videosrc
     if detectCoralDevBoard():
         scale_caps = None
-        PIPELINE += """ ! decodebin ! glupload ! tee name=t
-               t. ! {leaky_q} ! videoconvert ! x264enc ! rtph264pay config-interval=10 pt=96 ! udpsink host=192.168.3.255 auto-multicast=true port=5000
+        PIPELINE += """ ! decodebin ! glupload ! glvideoflip video-direction={direction} ! tee name=t
+               t. ! {leaky_q} ! freezer name=freezer ! glsvgoverlaysink name=overlaysink
                t. ! {leaky_q} ! glfilterbin filter=glbox name=glbox ! {sink_caps} ! {sink_element}
             """
-    # else:  # raspberry pi or linux
-        # scale = min(inference_size[0] / src_size[0], inference_size[1] / src_size[1])
-        # scale = tuple(int(x * scale) for x in src_size)
-        # scale_caps = 'video/x-raw,width={width},height={height}'.format(width=scale[0], height=scale[1])
-        # PIPELINE += """ ! decodebin ! videoflip video-direction={direction} ! tee name=t
-        #        t. ! videoconvert ! freezer name=freezer ! rsvgoverlay name=overlay
-        #           ! videoconvert ! autovideosink
-        #        t. ! {leaky_q} ! videoconvert ! videoscale ! {scale_caps} ! videobox name=box autocrop=true
-        #           ! {sink_caps} ! {sink_element}
-        #     """
+    else:  # raspberry pi or linux
+        scale = min(inference_size[0] / src_size[0], inference_size[1] / src_size[1])
+        scale = tuple(int(x * scale) for x in src_size)
+        scale_caps = 'video/x-raw,width={width},height={height}'.format(width=scale[0], height=scale[1])
+        PIPELINE += """ ! decodebin ! videoflip video-direction={direction} ! tee name=t
+               t. ! {leaky_q} ! videoconvert ! freezer name=freezer ! rsvgoverlay name=overlay
+                  ! videoconvert ! autovideosink
+               t. ! {leaky_q} ! videoconvert ! videoscale ! {scale_caps} ! videobox name=box autocrop=true
+                  ! {sink_caps} ! {sink_element}
+            """
 
     SINK_ELEMENT = 'appsink name=appsink emit-signals=true max-buffers=1 drop=true'
     SINK_CAPS = 'video/x-raw,format=RGB,width={width},height={height}'
