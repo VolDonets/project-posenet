@@ -44,10 +44,14 @@ videoconvert_elem = pipeline.get_by_name("videoconvert_elem")
 videoconvert_sink_pad = videoconvert_elem.get_static_pad("sink")
 
 def padProbeCallBack(pad, info, pdata):
-    print('hey')
-    print(pad)
-    print(info)
-    print(pdata)
+    buffer = info.get_buffer()
+    #Gst.MiniObject.set_writable(buffer.mini_object)
+    #print('hey')
+    #print(type(buffer.mini_object), ">>>", buffer.is_all_memory_writable())
+    # print(type(info.id) + ">>>" + info.id)
+    # print(type(info.offset) + ">>>" + info.offset)
+    # print(type(info.size) + ">>>" + info.size)
+    # print(type(info.type) + ">>>" + info.type)
     print('\n\n')
     return Gst.PadProbeReturn.OK
 
